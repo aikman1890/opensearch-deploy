@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opensearch-dashboards
+  namespace: logging
+  labels:
+    app: opensearch-dashboards
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: opensearch-dashboards
+  template:
+    metadata:
+      labels:
+        app: opensearch-dashboards
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: opensearch-dashboards
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: dashboards
+          image: opensearchproject/opensearch-dashboards:2.19.0
+          env:
+            - name: OPENSEARCH_HOSTS
+              value: '["https://opensearch-headless.logging.svc.cluster.local:9200"]'
+            - name: OPENSEARCH_USERNAME
+              value: kibanaserver
+            - name: OPENSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: opensearch-dashboards-secret
+                  key: password
+            - name: OPENSEARCH_JAVA_OPTS
+              value: "-Xms512m -Xmx512m"
+          ports:
+            - name: http
+              containerPort: 5601
+          readinessProbe:
+            httpGet:
+              path: /api/status
+              port: 5601
+            initialDelaySeconds: 30
+            periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opensearch-dashboards
+  namespace: logging
+spec:
+  selector:
+    app: opensearch-dashboards
+  ports:
+    - name: http
+      port: 5601
+      targetPort: 5601
+  type: ClusterIP

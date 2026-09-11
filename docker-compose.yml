@@ -1,0 +1,52 @@
+version: "3.8"
+
+services:
+  opensearch:
+    image: opensearchproject/opensearch:2.19.0
+    container_name: opensearch-node
+    environment:
+      - cluster.name=opensearch-dev
+      - node.name=opensearch-node
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g"
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=CHANGE_ME_admin_password
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    networks:
+      - opensearch-net
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2.19.0
+    container_name: opensearch-dashboards
+    environment:
+      - OPENSEARCH_HOSTS=["https://opensearch:9200"]
+      - OPENSEARCH_USERNAME=kibanaserver
+      - OPENSEARCH_PASSWORD=kibanaserver
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - dashboards-data:/usr/share/opensearch-dashboards/data
+    ports:
+      - "5601:5601"
+    networks:
+      - opensearch-net
+    depends_on:
+      - opensearch
+
+volumes:
+  opensearch-data:
+  dashboards-data:
+
+networks:
+  opensearch-net:
+    driver: bridge
